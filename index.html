@@ -2,9 +2,8 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>مرسل الفيديو</title>
+  <title>📤 مرسل الفيديو</title>
   <style>
-    * { box-sizing: border-box; }
     body {
       font-family: "Segoe UI", Tahoma, sans-serif;
       background: linear-gradient(135deg, #00b894, #1e90ff);
@@ -15,12 +14,6 @@
       min-height: 100vh;
       padding: 20px;
       color: white;
-    }
-    h3 {
-      font-size: 26px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      text-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
     video {
       width: 100%;
@@ -39,17 +32,11 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: 0.25s;
     }
     #startCamera { background: #27ae60; color: white; }
     #stopCamera { background: #c0392b; color: white; }
     #startAudio { background: #2980b9; color: white; }
     #stopAudio { background: #8e44ad; color: white; }
-    footer {
-      margin-top: 30px;
-      font-size: 12px;
-      opacity: 0.8;
-    }
   </style>
 </head>
 <body>
@@ -61,12 +48,11 @@
     <button id="startAudio">تشغيل الصوت</button>
     <button id="stopAudio">إيقاف الصوت</button>
   </div>
-  <footer>تمت برمجته من طرف ياسر أبو صوف لتجربة بث سهلة وسريعة</footer>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    // ضع هنا IP العام أو رابط ngrok
-    const socket = io("http://127.0.0.1:3000");
+    // ضع هنا رابط ngrok
+    const socket = io("https://nonexternally-undeclined-timmy.ngrok-free.dev");
 
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -76,26 +62,19 @@
     let videoTrack;
     let audioTrack;
 
-    // إرسال offer عند فتح الكاميرا
     document.getElementById('startCamera').onclick = async () => {
-  stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  document.getElementById('video').srcObject = stream;
-  videoTrack = stream.getVideoTracks()[0];
-  pc.addTrack(videoTrack, stream);
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById('video').srcObject = stream;
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  socket.emit("offer", offer);
-  console.log("📤 تم إرسال offer");
-  };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", offer);
+      console.log("📤 تم إرسال offer");
+    };
 
     document.getElementById('stopCamera').onclick = () => {
-      if (videoTrack) {
-        videoTrack.stop();
-        pc.getSenders().forEach(s => {
-          if (s.track && s.track.kind === "video") pc.removeTrack(s);
-        });
-      }
+      if (videoTrack) videoTrack.stop();
     };
 
     document.getElementById('startAudio').onclick = async () => {
@@ -105,28 +84,20 @@
     };
 
     document.getElementById('stopAudio').onclick = () => {
-      if (audioTrack) {
-        audioTrack.stop();
-        pc.getSenders().forEach(s => {
-          if (s.track && s.track.kind === "audio") pc.removeTrack(s);
-        });
-      }
+      if (audioTrack) audioTrack.stop();
     };
 
-    // استقبال الرد من المستقبل
-   socket.on("answer", async (answer) => {
-  console.log("📥 تم استلام answer من المستقبل");
-  await pc.setRemoteDescription(answer);
-});
+    socket.on("answer", async (answer) => {
+      console.log("📥 تم استلام answer من المستقبل");
+      await pc.setRemoteDescription(answer);
+    });
 
-    // تبادل ICE candidates
     pc.onicecandidate = (event) => {
-  if (event.candidate) {
-    socket.emit("candidate", event.candidate);
-    console.log("📡 تم إرسال ICE Candidate");
-  }
-};
-
+      if (event.candidate) {
+        socket.emit("candidate", event.candidate);
+        console.log("📡 تم إرسال ICE Candidate");
+      }
+    };
 
     socket.on("candidate", (candidate) => {
       pc.addIceCandidate(new RTCIceCandidate(candidate));
