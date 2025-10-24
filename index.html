@@ -24,27 +24,12 @@
     }
     video {
       width: 100%;
-      height: 100%;
+      max-width: 800px;
       aspect-ratio: 16/9;
       background: #000;
       border-radius: 12px;
       margin-bottom: 20px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
-    textarea {
-      width: 100%;
-      max-width: 800px;
-      height: 90px;
-      padding: 10px;
-      margin-top: 10px;
-      font-family: monospace;
-      font-size: 14px;
-      border-radius: 8px;
-      border: none;
-      outline: none;
-      resize: none;
-      background: rgba(255,255,255,0.9);
-      color: #333;
     }
     button {
       padding: 10px 20px;
@@ -60,12 +45,6 @@
     #stopCamera { background: #c0392b; color: white; }
     #startAudio { background: #2980b9; color: white; }
     #stopAudio { background: #8e44ad; color: white; }
-    #createOffer { background: #f39c12; color: white; }
-    #connect { background: #27ae60; color: white; }
-    .copy-btn { background: #2c3e50; color: white; }
-
-    button:hover { filter: brightness(1.1); }
-
     footer {
       margin-top: 30px;
       font-size: 12px;
@@ -75,83 +54,79 @@
 </head>
 <body>
   <h3>📤 مرسل الفيديو</h3>
-
   <video id="video" autoplay playsinline muted></video>
-
   <div>
     <button id="startCamera">تشغيل الكاميرا</button>
     <button id="stopCamera">إيقاف الكاميرا</button>
     <button id="startAudio">تشغيل الصوت</button>
     <button id="stopAudio">إيقاف الصوت</button>
   </div>
+  <footer>تمت برمجته من طرف ياسر أبو صوف لتجربة بث سهلة وسريعة</footer>
 
-  <button id="createOffer">إنشاء العرض</button>
-  <textarea id="offer" placeholder="انسخ هذا إلى المستقبل"></textarea>
-  <button id="copyOffer" class="copy-btn">📋 نسخ العرض</button>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    // ضع هنا IP العام أو رابط ngrok
+    const socket = io(" https://nonexternally-undeclined-timmy.ngrok-free.dev");
 
-  <textarea id="answer" placeholder="ضع رد المستقبل هنا"></textarea>
-  <button id="connect">اتصال</button>
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
 
-  <footer>تم التصميم لتجربة بث سهلة وسريعة</footer>
+    let stream;
+    let videoTrack;
+    let audioTrack;
 
-<script>
-let pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
-let stream = new MediaStream();
-let videoTrack, audioTrack;
+    // إرسال offer عند فتح الكاميرا
+    document.getElementById('startCamera').onclick = async () => {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById('video').srcObject = stream;
+      videoTrack = stream.getVideoTracks()[0];
+      pc.addTrack(videoTrack, stream);
 
-document.getElementById('startCamera').onclick = async () => {
-  const cam = await navigator.mediaDevices.getUserMedia({ video: true });
-  videoTrack = cam.getVideoTracks()[0];
-  stream.addTrack(videoTrack);
-  pc.addTrack(videoTrack, stream);
-  document.getElementById('video').srcObject = stream;
-};
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", offer);
+    };
 
-document.getElementById('stopCamera').onclick = () => {
-  if (videoTrack) {
-    videoTrack.stop();
-    stream.removeTrack(videoTrack);
-    videoTrack = null;
-  }
-};
+    document.getElementById('stopCamera').onclick = () => {
+      if (videoTrack) {
+        videoTrack.stop();
+        pc.getSenders().forEach(s => {
+          if (s.track && s.track.kind === "video") pc.removeTrack(s);
+        });
+      }
+    };
 
-document.getElementById('startAudio').onclick = async () => {
-  const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-  audioTrack = mic.getAudioTracks()[0];
-  stream.addTrack(audioTrack);
-  pc.addTrack(audioTrack, stream);
-};
+    document.getElementById('startAudio').onclick = async () => {
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioTrack = mic.getAudioTracks()[0];
+      pc.addTrack(audioTrack, mic);
+    };
 
-document.getElementById('stopAudio').onclick = () => {
-  if (audioTrack) {
-    audioTrack.stop();
-    stream.removeTrack(audioTrack);
-    audioTrack = null;
-  }
-};
+    document.getElementById('stopAudio').onclick = () => {
+      if (audioTrack) {
+        audioTrack.stop();
+        pc.getSenders().forEach(s => {
+          if (s.track && s.track.kind === "audio") pc.removeTrack(s);
+        });
+      }
+    };
 
-pc.onicecandidate = e => {
-  if (e.candidate) return;
-  document.getElementById('offer').value = JSON.stringify(pc.localDescription);
-};
+    // استقبال الرد من المستقبل
+    socket.on("answer", async (answer) => {
+      await pc.setRemoteDescription(answer);
+    });
 
-document.getElementById('createOffer').onclick = async () => {
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-};
+    // تبادل ICE candidates
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("candidate", event.candidate);
+      }
+    };
 
-document.getElementById('connect').onclick = async () => {
-  const answer = JSON.parse(document.getElementById('answer').value);
-  await pc.setRemoteDescription(answer);
-};
-
-document.getElementById('copyOffer').onclick = async () => {
-  const text = document.getElementById('offer').value;
-  await navigator.clipboard.writeText(text);
-  alert('✅ تم نسخ العرض بنجاح');
-};
-</script>
+    socket.on("candidate", (candidate) => {
+      pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+  </script>
 </body>
 </html>
