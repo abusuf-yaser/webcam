@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>مرسل الفيديو</title>
+</head>
+<body>
+  <h3>مرسل الفيديو</h3>
+  <video id="video" autoplay playsinline></video><br>
+  <button id="startBtn">تشغيل الكاميرا</button>
+  <button id="createOffer">إنشاء العرض</button><br>
+  <textarea id="offer" placeholder="انسخ هذا إلى المستقبل"></textarea><br>
+  <textarea id="answer" placeholder="ضع رد المستقبل هنا"></textarea><br>
+  <button id="connect">اتصال</button>
+
+<script>
+const pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+});
+
+document.getElementById('startBtn').onclick = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  document.getElementById('video').srcObject = stream;
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+};
+
+pc.onicecandidate = e => {
+  if (e.candidate) return;
+  document.getElementById('offer').value = JSON.stringify(pc.localDescription);
+};
+
+document.getElementById('createOffer').onclick = async () => {
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+};
+
+document.getElementById('connect').onclick = async () => {
+  const answer = JSON.parse(document.getElementById('answer').value);
+  await pc.setRemoteDescription(answer);
+};
+</script>
+</body>
+</html>
