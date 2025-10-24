@@ -3,25 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <title>مرسل الفيديو</title>
+  <style>
+    body {
+      font-family: "Tahoma", sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h3 { color: #333; }
+    video {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      margin-bottom: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    button {
+      margin: 5px;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    textarea {
+      width: 320px;
+      height: 70px;
+      margin: 5px 0;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-family: monospace;
+      direction: ltr;
+    }
+  </style>
 </head>
 <body>
   <h3>مرسل الفيديو</h3>
-  <video id="video" autoplay playsinline></video><br>
-  <button id="startBtn">تشغيل الكاميرا</button>
+  <video id="video" autoplay playsinline muted></video><br>
+  <div>
+    <button id="startCamera">تشغيل الكاميرا</button>
+    <button id="stopCamera">إيقاف الكاميرا</button>
+    <button id="startAudio">تشغيل الصوت</button>
+    <button id="stopAudio">إيقاف الصوت</button>
+  </div>
   <button id="createOffer">إنشاء العرض</button><br>
   <textarea id="offer" placeholder="انسخ هذا إلى المستقبل"></textarea><br>
+  <button id="copyOffer">📋 نسخ</button>
   <textarea id="answer" placeholder="ضع رد المستقبل هنا"></textarea><br>
   <button id="connect">اتصال</button>
 
 <script>
-const pc = new RTCPeerConnection({
+let pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
+let stream = new MediaStream();
+let videoTrack, audioTrack;
 
-document.getElementById('startBtn').onclick = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+document.getElementById('startCamera').onclick = async () => {
+  const cam = await navigator.mediaDevices.getUserMedia({ video: true });
+  videoTrack = cam.getVideoTracks()[0];
+  stream.addTrack(videoTrack);
+  pc.addTrack(videoTrack, stream);
   document.getElementById('video').srcObject = stream;
-  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+};
+
+document.getElementById('stopCamera').onclick = () => {
+  if (videoTrack) {
+    videoTrack.stop();
+    stream.removeTrack(videoTrack);
+    videoTrack = null;
+  }
+};
+
+document.getElementById('startAudio').onclick = async () => {
+  const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioTrack = mic.getAudioTracks()[0];
+  stream.addTrack(audioTrack);
+  pc.addTrack(audioTrack, stream);
+};
+
+document.getElementById('stopAudio').onclick = () => {
+  if (audioTrack) {
+    audioTrack.stop();
+    stream.removeTrack(audioTrack);
+    audioTrack = null;
+  }
+};
+document.getElementById('copyOffer').onclick = async () => {
+  const text = document.getElementById('offer').value;
+  await navigator.clipboard.writeText(text);
+  alert('تم النسخ بنجاح');
 };
 
 pc.onicecandidate = e => {
