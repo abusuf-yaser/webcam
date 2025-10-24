@@ -4,62 +4,95 @@
   <meta charset="UTF-8">
   <title>مرسل الفيديو</title>
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: "Tahoma", sans-serif;
-      background: #f4f4f4;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(135deg, #00b894, #1e90ff);
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
       padding: 20px;
+      color: white;
     }
-    h3 { color: #333; }
+    h3 {
+      font-size: 26px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
     video {
       width: 100%;
       height: 100%;
+      aspect-ratio: 16/9;
       background: #000;
-      margin-bottom: 15px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-    }
-    button {
-      margin: 5px;
-      padding: 8px 15px;
-      border: none;
-      border-radius: 5px;
-      background: #007bff;
-      color: white;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background: #0056b3;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     }
     textarea {
-      width: 320px;
-      height: 70px;
-      margin: 5px 0;
-      padding: 5px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      width: 100%;
+      max-width: 800px;
+      height: 90px;
+      padding: 10px;
+      margin-top: 10px;
       font-family: monospace;
-      direction: ltr;
+      font-size: 14px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      resize: none;
+      background: rgba(255,255,255,0.9);
+      color: #333;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.25s;
+    }
+    #startCamera { background: #27ae60; color: white; }
+    #stopCamera { background: #c0392b; color: white; }
+    #startAudio { background: #2980b9; color: white; }
+    #stopAudio { background: #8e44ad; color: white; }
+    #createOffer { background: #f39c12; color: white; }
+    #connect { background: #27ae60; color: white; }
+    .copy-btn { background: #2c3e50; color: white; }
+
+    button:hover { filter: brightness(1.1); }
+
+    footer {
+      margin-top: 30px;
+      font-size: 12px;
+      opacity: 0.8;
     }
   </style>
 </head>
 <body>
-  <h3>مرسل الفيديو</h3>
-  <video id="video" autoplay playsinline muted></video><br>
+  <h3>📤 مرسل الفيديو</h3>
+
+  <video id="video" autoplay playsinline muted></video>
+
   <div>
     <button id="startCamera">تشغيل الكاميرا</button>
     <button id="stopCamera">إيقاف الكاميرا</button>
     <button id="startAudio">تشغيل الصوت</button>
     <button id="stopAudio">إيقاف الصوت</button>
   </div>
-  <button id="createOffer">إنشاء العرض</button><br>
-  <textarea id="offer" placeholder="انسخ هذا إلى المستقبل"></textarea><br>
-  <button id="copyOffer">📋 نسخ</button>
-  <textarea id="answer" placeholder="ضع رد المستقبل هنا"></textarea><br>
+
+  <button id="createOffer">إنشاء العرض</button>
+  <textarea id="offer" placeholder="انسخ هذا إلى المستقبل"></textarea>
+  <button id="copyOffer" class="copy-btn">📋 نسخ العرض</button>
+
+  <textarea id="answer" placeholder="ضع رد المستقبل هنا"></textarea>
   <button id="connect">اتصال</button>
+
+  <footer>تم التصميم لتجربة بث سهلة وسريعة</footer>
 
 <script>
 let pc = new RTCPeerConnection({
@@ -98,11 +131,6 @@ document.getElementById('stopAudio').onclick = () => {
     audioTrack = null;
   }
 };
-document.getElementById('copyOffer').onclick = async () => {
-  const text = document.getElementById('offer').value;
-  await navigator.clipboard.writeText(text);
-  alert('تم النسخ بنجاح');
-};
 
 pc.onicecandidate = e => {
   if (e.candidate) return;
@@ -117,6 +145,12 @@ document.getElementById('createOffer').onclick = async () => {
 document.getElementById('connect').onclick = async () => {
   const answer = JSON.parse(document.getElementById('answer').value);
   await pc.setRemoteDescription(answer);
+};
+
+document.getElementById('copyOffer').onclick = async () => {
+  const text = document.getElementById('offer').value;
+  await navigator.clipboard.writeText(text);
+  alert('✅ تم نسخ العرض بنجاح');
 };
 </script>
 </body>
