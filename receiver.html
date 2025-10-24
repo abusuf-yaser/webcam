@@ -2,74 +2,72 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>📡 مستقبل الفيديو</title>
+  <title>مستقبل الفيديو</title>
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: linear-gradient(135deg, #1e90ff, #00b894);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      padding: 20px;
-      color: white;
-    }
-    video {
-      width: 100%;
-      max-width: 800px;
-      background: #000;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
+    body { font-family: sans-serif; background:#00b894; color:#fff; text-align:center; padding:20px; }
+    video { width:100%; max-width:800px; aspect-ratio:16/9; background:#000; margin:20px 0; }
+    textarea { width:100%; max-width:800px; height:120px; margin-top:10px; font-size:12px; }
+    button { padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; border:none; border-radius:5px; }
+    #pasteOffer { background:#2c3e50; color:#fff; }
+    #connect { background:#27ae60; color:#fff; }
+    #copyAnswer { background:#f39c12; color:#fff; }
   </style>
 </head>
 <body>
-  <h3>📡 مستقبل الفيديو</h3>
+  <h2>📡 مستقبل الفيديو</h2>
   <video id="remoteVideo" autoplay playsinline></video>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script>
-    // نفس رابط ngrok
-   const socket = io("https://nonexternally-undeclined-timmy.ngrok-free.dev");
+  <div>
+    <button id="pasteOffer">📥 لصق Offer</button>
+    <button id="connect">🔗 اتصال</button>
+  </div>
+  <textarea id="offer" placeholder="ألصق هنا كود الـ Offer من المرسل"></textarea>
 
-    socket.on("connect", () => console.log("✅ المستقبل متصل بالسيرفر"));
+  <div>
+    <button id="copyAnswer">📋 نسخ Answer</button>
+  </div>
+  <textarea id="answer" placeholder="سيظهر كود الـ Answer هنا"></textarea>
 
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
+<script>
+const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
 
-    pc.ontrack = (event) => {
-      console.log("🎥 تم استقبال stream من المرسل");
-      const remoteVideo = document.getElementById('remoteVideo');
-      remoteVideo.srcObject = event.streams[0];
-      remoteVideo.play().catch(e => console.error("❌ خطأ تشغيل الفيديو:", e));
-    };
+pc.ontrack = e => {
+  document.getElementById('remoteVideo').srcObject = e.streams[0];
+};
 
-    socket.on("offer", async (offer) => {
-      console.log("📥 تم استلام offer من المرسل");
-      await pc.setRemoteDescription(offer);
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", pc.localDescription);
-      console.log("📤 تم إرسال answer إلى المرسل");
-    });
+// زر اللصق
+document.getElementById('pasteOffer').onclick = async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('offer').value = text;
+    alert("✅ تم لصق الكود من الحافظة");
+  } catch {
+    alert("⚠️ المتصفح لا يسمح باللصق التلقائي. ألصق يدويًا.");
+  }
+};
 
-    socket.on("candidate", (candidate) => {
-      console.log("📩 تم استلام ICE من المرسل");
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
+// زر الاتصال
+document.getElementById('connect').onclick = async () => {
+  const offerText = document.getElementById('offer').value.trim();
+  if (!offerText) return alert("⚠️ أدخل كود Offer أولاً");
+  const offer = JSON.parse(offerText);
+  await pc.setRemoteDescription(offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+};
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("candidate", event.candidate);
-        console.log("📡 تم إرسال ICE من المستقبل");
-      }
-    };
+// توليد answer
+pc.onicecandidate = e => {
+  if (!e.candidate) {
+    document.getElementById('answer').value = JSON.stringify(pc.localDescription);
+  }
+};
 
-    pc.onconnectionstatechange = () => {
-      console.log("📶 حالة الاتصال:", pc.connectionState);
-    };
-  </script>
+// زر نسخ answer
+document.getElementById('copyAnswer').onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById('answer').value);
+  alert("✅ تم نسخ Answer");
+};
+</script>
 </body>
 </html>

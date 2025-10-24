@@ -2,45 +2,22 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>📤 مرسل الفيديو</title>
+  <title>مرسل الفيديو</title>
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, sans-serif;
-      background: linear-gradient(135deg, #00b894, #1e90ff);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      padding: 20px;
-      color: white;
-    }
-    video {
-      width: 100%;
-      max-width: 800px;
-      aspect-ratio: 16/9;
-      background: #000;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
-    button {
-      padding: 10px 20px;
-      margin: 10px 5px;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    #startCamera { background: #27ae60; color: white; }
-    #stopCamera { background: #c0392b; color: white; }
-    #startAudio { background: #2980b9; color: white; }
-    #stopAudio { background: #8e44ad; color: white; }
+    body { font-family: sans-serif; background:#1e90ff; color:#fff; text-align:center; padding:20px; }
+    video { width:100%; max-width:800px; aspect-ratio:16/9; background:#000; margin:20px 0; }
+    textarea { width:100%; max-width:800px; height:120px; margin-top:10px; font-size:12px; }
+    button { padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; border:none; border-radius:5px; }
+    #startCamera { background:#27ae60; color:#fff; }
+    #stopCamera { background:#c0392b; color:#fff; }
+    #startAudio { background:#2980b9; color:#fff; }
+    #stopAudio { background:#8e44ad; color:#fff; }
+    #copyOffer { background:#f39c12; color:#fff; }
+    #setAnswer { background:#2c3e50; color:#fff; }
   </style>
 </head>
 <body>
-  <h3>📤 مرسل الفيديو</h3>
+  <h2>📤 مرسل الفيديو</h2>
   <video id="video" autoplay playsinline muted></video>
   <div>
     <button id="startCamera">تشغيل الكاميرا</button>
@@ -48,60 +25,63 @@
     <button id="startAudio">تشغيل الصوت</button>
     <button id="stopAudio">إيقاف الصوت</button>
   </div>
+  <div>
+    <button id="copyOffer">📋 نسخ Offer</button>
+  </div>
+  <textarea id="offer" placeholder="سيظهر كود الـ Offer هنا"></textarea>
+  <div>
+    <button id="setAnswer">📥 لصق Answer</button>
+  </div>
+  <textarea id="answer" placeholder="ألصق هنا كود الـ Answer من المستقبل"></textarea>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script>
-    // ضع هنا رابط ngrok
-    const socket = io("https://nonexternally-undeclined-timmy.ngrok-free.dev");
+<script>
+const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
+let stream, videoTrack, audioTrack;
 
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-    });
+document.getElementById('startCamera').onclick = async () => {
+  stream = await navigator.mediaDevices.getUserMedia({ video:true });
+  document.getElementById('video').srcObject = stream;
+  videoTrack = stream.getVideoTracks()[0];
+  pc.addTrack(videoTrack, stream);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+};
 
-    let stream;
-    let videoTrack;
-    let audioTrack;
+document.getElementById('stopCamera').onclick = () => {
+  if (videoTrack) {
+    videoTrack.stop();
+    pc.getSenders().forEach(s => { if (s.track && s.track.kind === "video") pc.removeTrack(s); });
+  }
+};
 
-    document.getElementById('startCamera').onclick = async () => {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      document.getElementById('video').srcObject = stream;
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+document.getElementById('startAudio').onclick = async () => {
+  const mic = await navigator.mediaDevices.getUserMedia({ audio:true });
+  audioTrack = mic.getAudioTracks()[0];
+  pc.addTrack(audioTrack, mic);
+};
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("offer", offer);
-      console.log("📤 تم إرسال offer");
-    };
+document.getElementById('stopAudio').onclick = () => {
+  if (audioTrack) {
+    audioTrack.stop();
+    pc.getSenders().forEach(s => { if (s.track && s.track.kind === "audio") pc.removeTrack(s); });
+  }
+};
 
-    document.getElementById('stopCamera').onclick = () => {
-      if (videoTrack) videoTrack.stop();
-    };
+pc.onicecandidate = e => {
+  if (!e.candidate) {
+    document.getElementById('offer').value = JSON.stringify(pc.localDescription);
+  }
+};
 
-    document.getElementById('startAudio').onclick = async () => {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioTrack = mic.getAudioTracks()[0];
-      pc.addTrack(audioTrack, mic);
-    };
+document.getElementById('copyOffer').onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById('offer').value);
+  alert("✅ تم نسخ Offer");
+};
 
-    document.getElementById('stopAudio').onclick = () => {
-      if (audioTrack) audioTrack.stop();
-    };
-
-    socket.on("answer", async (answer) => {
-      console.log("📥 تم استلام answer من المستقبل");
-      await pc.setRemoteDescription(answer);
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("candidate", event.candidate);
-        console.log("📡 تم إرسال ICE Candidate");
-      }
-    };
-
-    socket.on("candidate", (candidate) => {
-      pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-  </script>
+document.getElementById('setAnswer').onclick = async () => {
+  const answer = JSON.parse(document.getElementById('answer').value);
+  await pc.setRemoteDescription(answer);
+};
+</script>
 </body>
 </html>
