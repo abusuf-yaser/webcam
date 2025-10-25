@@ -5,12 +5,13 @@
   <title>مستقبل الفيديو</title>
   <style>
     body { font-family: sans-serif; background:#00b894; color:#fff; text-align:center; padding:20px; }
-    video { width:100%; max-width:800px; aspect-ratio:16/9; background:#000; margin:20px 0; }
+    video { width:100%;  aspect-ratio:16/9; background:#000; margin:20px 0; }
     textarea { width:100%; max-width:800px; height:120px; margin-top:10px; font-size:12px; }
     button { padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; border:none; border-radius:5px; }
     #pasteOffer { background:#2c3e50; color:#fff; }
     #connect { background:#27ae60; color:#fff; }
     #copyAnswer { background:#f39c12; color:#fff; }
+    #muteAudio { background:#c0392b; color:#fff; }
   </style>
 </head>
 <body>
@@ -20,6 +21,7 @@
   <div>
     <button id="pasteOffer">📥 لصق Offer</button>
     <button id="connect">🔗 اتصال</button>
+    <button id="muteAudio">🔇 كتم الصوت</button>
   </div>
   <textarea id="offer" placeholder="ألصق هنا كود الـ Offer من المرسل"></textarea>
 
@@ -30,9 +32,11 @@
 
 <script>
 const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
+const videoEl = document.getElementById('remoteVideo');
+let isMuted = false;
 
 pc.ontrack = e => {
-  document.getElementById('remoteVideo').srcObject = e.streams[0];
+  videoEl.srcObject = e.streams[0];
 };
 
 // زر اللصق
@@ -67,6 +71,14 @@ pc.onicecandidate = e => {
 document.getElementById('copyAnswer').onclick = async () => {
   await navigator.clipboard.writeText(document.getElementById('answer').value);
   alert("✅ تم نسخ Answer");
+};
+
+// زر كتم وتشغيل الصوت
+document.getElementById('muteAudio').onclick = () => {
+  if (!videoEl.srcObject) return;
+  isMuted = !isMuted;
+  videoEl.muted = isMuted;
+  document.getElementById('muteAudio').textContent = isMuted ? "🔊 تشغيل الصوت" : "🔇 كتم الصوت";
 };
 </script>
 </body>
