@@ -159,15 +159,22 @@
 
     // زر تشغيل الكاميرا
    document.getElementById('toggleCamera').onclick = async () => {
-  // 🟠 إعادة تعيين الميديا القديمة
+  // 1. إذا في اتصال قديم افصله
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+
+  // 2. أنشئ PeerConnection جديد
+  pc = createPeer();
+
+  // 3. أوقف أي تدفق قديم
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
     stream = null;
-    videoTrack = null;
-    audioTrack = null;
   }
 
-  // 🟢 طلب تدفق جديد
+  // 4. اطلب تدفق جديد
   stream = await navigator.mediaDevices.getUserMedia({
     video: {
       width: { ideal: 1920 },
@@ -183,7 +190,7 @@
   pc.addTrack(videoTrack, stream);
   pc.addTrack(audioTrack, stream);
 
-  // 🟡 تحسين جودة الفيديو
+  // 5. تحسين جودة الفيديو
   const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
   const params = sender.getParameters();
   if (!params.encodings) params.encodings = [{}];
@@ -192,19 +199,21 @@
   params.encodings[0].maxFramerate = 30;
   await sender.setParameters(params);
 
-  // 🟢 فرض 1080p
   await videoTrack.applyConstraints({
     width: { ideal: 1920 },
     height: { ideal: 1080 },
     frameRate: { ideal: 30 }
   });
 
-  // 🔸 إنشاء Offer جديد
+  // 6. توليد Offer جديد
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
+  // 7. عرض الكود
+  document.getElementById('offer').value = JSON.stringify(pc.localDescription);
+
+  // 8. تحديث نص الزر
   document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
-  document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
 };
 
 
