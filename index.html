@@ -264,6 +264,16 @@
       document.getElementById('answer').value = "";
       showToast("⛔ تم إيقاف الاتصال");
     };
+    window.onload = () => {
+  pc = createPeer();
+  stream = null;
+  videoTrack = null;
+  audioTrack = null;
+  offerCreated = false;
+  cameraEnabled = false;
+  audioEnabled = false;
+};
+
   </script>
 
 </body>
