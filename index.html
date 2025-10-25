@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar">
+
 <head>
   <meta charset="UTF-8">
   <title>مرسل الفيديو</title>
@@ -11,7 +12,11 @@
       text-align: center;
       padding: 20px;
     }
-    h2 { margin-bottom: 10px; }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
     video {
       width: 100%;
       max-width: 800px;
@@ -19,8 +24,9 @@
       background: #000;
       margin: 20px 0;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
+
     textarea {
       width: 100%;
       max-width: 800px;
@@ -31,12 +37,14 @@
       border: none;
       padding: 8px;
     }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 10px;
     }
+
     button {
       padding: 10px 20px;
       font-size: 16px;
@@ -46,19 +54,40 @@
       color: #fff;
       transition: 0.25s;
     }
-    #toggleCamera { background: #27ae60; }
-    #toggleAudio { background: #2980b9; }
-    #copyOffer { background: #f39c12; }
-    #pasteAnswer { background: #8e44ad; }
-    #connect { background: #2c3e50; }
-    #disconnect { background: #c0392b; }
-    button:hover { opacity: 0.85; }
+
+    #toggleCamera {
+      background: #27ae60;
+    }
+
+    #toggleAudio {
+      background: #2980b9;
+    }
+
+    #copyOffer {
+      background: #f39c12;
+    }
+
+    #pasteAnswer {
+      background: #8e44ad;
+    }
+
+    #connect {
+      background: #2c3e50;
+    }
+
+    #disconnect {
+      background: #c0392b;
+    }
+
+    button:hover {
+      opacity: 0.85;
+    }
 
     /* Toast */
     #toast {
       visibility: hidden;
       min-width: 220px;
-      background-color: rgba(0,0,0,0.8);
+      background-color: rgba(0, 0, 0, 0.8);
       color: #fff;
       text-align: center;
       border-radius: 4px;
@@ -71,9 +100,14 @@
       opacity: 0;
       transition: opacity 0.3s, visibility 0.3s;
     }
-    #toast.show { visibility: visible; opacity: 1; }
+
+    #toast.show {
+      visibility: visible;
+      opacity: 1;
+    }
   </style>
 </head>
+
 <body>
   <h2>📤 مرسل الفيديو - جودة عالية</h2>
   <video id="video" autoplay playsinline muted></video>
@@ -92,137 +126,150 @@
 
   <div id="toast"></div>
 
-<script>
-let pc;
-let stream = null;
-let videoTrack = null;
-let audioTrack = null;
-let cameraEnabled = false;
-let audioEnabled = false;
-let offerCreated = false;
+  <script>
+    let pc;
+    let stream = null;
+    let videoTrack = null;
+    let audioTrack = null;
+    let cameraEnabled = false;
+    let audioEnabled = false;
+    let offerCreated = false;
 
-function createPeer() {
-  const p = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    iceCandidatePoolSize: 4
-  });
-  p.onicecandidate = e => {
-    if (!e.candidate) {
-      document.getElementById('offer').value = JSON.stringify(p.localDescription);
+    function createPeer() {
+      const p = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        iceCandidatePoolSize: 4
+      });
+      p.onicecandidate = e => {
+        if (!e.candidate) {
+          document.getElementById('offer').value = JSON.stringify(p.localDescription);
+        }
+      };
+      return p;
     }
-  };
-  return p;
-}
 
-pc = createPeer();
+    pc = createPeer();
 
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = "show";
-  setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
-}
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = "show";
+      setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
+    }
 
-// زر تشغيل الكاميرا
-document.getElementById('toggleCamera').onclick = async () => {
-  if (!stream) {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1920, height: 1080, frameRate: 30 },
-      audio: true
-    });
-    document.getElementById('video').srcObject = stream;
-    videoTrack = stream.getVideoTracks()[0];
-    audioTrack = stream.getAudioTracks()[0];
-    pc.addTrack(videoTrack, stream);
-pc.addTrack(audioTrack, stream);
+    // زر تشغيل الكاميرا
+    document.getElementById('toggleCamera').onclick = async () => {
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1920, height: 1080, frameRate: 30 },
+          audio: true
+        });
 
-// 🟡 تحسين جودة الفيديو
-const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-const params = sender.getParameters();
-if (!params.encodings) params.encodings = [{}];
-params.encodings[0].maxBitrate = 4_000_000;            // 4 Mbps
-params.encodings[0].scaleResolutionDownBy = 1;         // لا تخفض الدقة
-params.encodings[0].maxFramerate = 30;
-sender.setParameters(params);
+        document.getElementById('video').srcObject = stream;
+        videoTrack = stream.getVideoTracks()[0];
+        audioTrack = stream.getAudioTracks()[0];
+        pc.addTrack(videoTrack, stream);
+        pc.addTrack(audioTrack, stream);
 
-// 🟢 إجبار الكاميرا على 1080p
-await videoTrack.applyConstraints({
-  width: { ideal: 1920 },
-  height: { ideal: 1080 },
-  frameRate: { ideal: 30 }
-});
+        // 🟡 تحسين جودة الفيديو
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        const params = sender.getParameters();
+        if (!params.encodings) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 4_000_000;            // 4 Mbps
+        params.encodings[0].scaleResolutionDownBy = 1;         // لا تخفض الدقة
+        params.encodings[0].maxFramerate = 30;
+        sender.setParameters(params);
+
+        // 🟢 إجبار الكاميرا على 1080p
+        await videoTrack.applyConstraints({
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
+        });
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+      } else {
+        cameraEnabled = !cameraEnabled;
+        videoTrack.enabled = cameraEnabled;
+        document.getElementById('toggleCamera').textContent = cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
+      }
+    };
+
 
     cameraEnabled = true;
     audioEnabled = true;
     document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
     document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
-    if (!offerCreated) {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      offerCreated = true;
-    }
-  } else {
-    cameraEnabled = !cameraEnabled;
-    videoTrack.enabled = cameraEnabled;
-    document.getElementById('toggleCamera').textContent = cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
+    window.onload = async () => {
+  if (!offerCreated) {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    offerCreated = true;
   }
-};
 
-// زر الصوت
-document.getElementById('toggleAudio').onclick = () => {
-  if (!audioTrack) return;
-  audioEnabled = !audioEnabled;
-  audioTrack.enabled = audioEnabled;
-  document.getElementById('toggleAudio').textContent = audioEnabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
-};
+   else {
+      cameraEnabled = !cameraEnabled;
+      videoTrack.enabled = cameraEnabled;
+      document.getElementById('toggleCamera').textContent = cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
+    };
+  };
 
-// زر نسخ offer
-document.getElementById('copyOffer').onclick = async () => {
-  await navigator.clipboard.writeText(document.getElementById('offer').value);
-  showToast("✅ تم نسخ Offer");
-};
+    // زر الصوت
+    document.getElementById('toggleAudio').onclick = () => {
+      if (!audioTrack) return;
+      audioEnabled = !audioEnabled;
+      audioTrack.enabled = audioEnabled;
+      document.getElementById('toggleAudio').textContent = audioEnabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
+    };
 
-// زر لصق answer
-document.getElementById('pasteAnswer').onclick = async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    document.getElementById('answer').value = text;
-    showToast("✅ تم لصق Answer");
-  } catch {
-    showToast("⚠️ ألصق يدويًا");
-  }
-};
+    // زر نسخ offer
+    document.getElementById('copyOffer').onclick = async () => {
+      await navigator.clipboard.writeText(document.getElementById('offer').value);
+      showToast("✅ تم نسخ Offer");
+    };
 
-// اتصال
-document.getElementById('connect').onclick = async () => {
-  const answerText = document.getElementById('answer').value.trim();
-  if (!answerText) return showToast("⚠️ ألصق كود Answer أولاً");
-  const answer = JSON.parse(answerText);
-  await pc.setRemoteDescription(answer);
-  showToast("🔗 تم الاتصال");
-};
+    // زر لصق answer
+    document.getElementById('pasteAnswer').onclick = async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('answer').value = text;
+        showToast("✅ تم لصق Answer");
+      } catch {
+        showToast("⚠️ ألصق يدويًا");
+      }
+    };
 
-// قطع الاتصال
-document.getElementById('disconnect').onclick = () => {
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    document.getElementById('video').srcObject = null;
-  }
-  pc.close();
-  pc = createPeer();
-  stream = null;
-  videoTrack = null;
-  audioTrack = null;
-  cameraEnabled = false;
-  audioEnabled = false;
-  offerCreated = false;
-  document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
-  document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
-  document.getElementById('offer').value = "";
-  document.getElementById('answer').value = "";
-  showToast("⛔ تم إيقاف الاتصال");
-};
-</script>
+    // اتصال
+    document.getElementById('connect').onclick = async () => {
+      const answerText = document.getElementById('answer').value.trim();
+      if (!answerText) return showToast("⚠️ ألصق كود Answer أولاً");
+      const answer = JSON.parse(answerText);
+      await pc.setRemoteDescription(answer);
+      showToast("🔗 تم الاتصال");
+    };
+
+    // قطع الاتصال
+    document.getElementById('disconnect').onclick = () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        document.getElementById('video').srcObject = null;
+      }
+      pc.close();
+      pc = createPeer();
+      stream = null;
+      videoTrack = null;
+      audioTrack = null;
+      cameraEnabled = false;
+      audioEnabled = false;
+      offerCreated = false;
+      document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
+      document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
+      document.getElementById('offer').value = "";
+      document.getElementById('answer').value = "";
+      showToast("⛔ تم إيقاف الاتصال");
+    };
+  </script>
 
 </body>
-</html>
+</html> 
