@@ -93,19 +93,28 @@
   <div id="toast"></div>
 
 <script>
-let pc = createPeer();
-const videoEl = document.getElementById('video');
-let stream, videoTrack, audioTrack;
-let offerCreated = false;
+let pc;
+let stream = null;
+let videoTrack = null;
+let audioTrack = null;
 let cameraEnabled = false;
 let audioEnabled = false;
+let offerCreated = false;
 
 function createPeer() {
-  return new RTCPeerConnection({
+  const p = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     iceCandidatePoolSize: 4
   });
+  p.onicecandidate = e => {
+    if (!e.candidate) {
+      document.getElementById('offer').value = JSON.stringify(p.localDescription);
+    }
+  };
+  return p;
 }
+
+pc = createPeer();
 
 function showToast(msg) {
   const toast = document.getElementById('toast');
@@ -114,14 +123,14 @@ function showToast(msg) {
   setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
 }
 
-// تشغيل الكاميرا
+// زر تشغيل الكاميرا
 document.getElementById('toggleCamera').onclick = async () => {
   if (!stream) {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 1920, height: 1080, frameRate: 30 },
       audio: true
     });
-    videoEl.srcObject = stream;
+    document.getElementById('video').srcObject = stream;
     videoTrack = stream.getVideoTracks()[0];
     audioTrack = stream.getAudioTracks()[0];
     pc.addTrack(videoTrack, stream);
@@ -130,7 +139,11 @@ document.getElementById('toggleCamera').onclick = async () => {
     audioEnabled = true;
     document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
     document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
-    if (!offerCreated) await createOffer();
+    if (!offerCreated) {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      offerCreated = true;
+    }
   } else {
     cameraEnabled = !cameraEnabled;
     videoTrack.enabled = cameraEnabled;
@@ -138,7 +151,7 @@ document.getElementById('toggleCamera').onclick = async () => {
   }
 };
 
-// كتم وتشغيل الصوت
+// زر الصوت
 document.getElementById('toggleAudio').onclick = () => {
   if (!audioTrack) return;
   audioEnabled = !audioEnabled;
@@ -146,26 +159,13 @@ document.getElementById('toggleAudio').onclick = () => {
   document.getElementById('toggleAudio').textContent = audioEnabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
 };
 
-// إنشاء offer مرة واحدة
-async function createOffer() {
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  offerCreated = true;
-}
-
-pc.onicecandidate = e => {
-  if (!e.candidate) {
-    document.getElementById('offer').value = JSON.stringify(pc.localDescription);
-  }
-};
-
-// نسخ offer
+// زر نسخ offer
 document.getElementById('copyOffer').onclick = async () => {
   await navigator.clipboard.writeText(document.getElementById('offer').value);
   showToast("✅ تم نسخ Offer");
 };
 
-// لصق answer
+// زر لصق answer
 document.getElementById('pasteAnswer').onclick = async () => {
   try {
     const text = await navigator.clipboard.readText();
@@ -176,7 +176,7 @@ document.getElementById('pasteAnswer').onclick = async () => {
   }
 };
 
-// الاتصال
+// اتصال
 document.getElementById('connect').onclick = async () => {
   const answerText = document.getElementById('answer').value.trim();
   if (!answerText) return showToast("⚠️ ألصق كود Answer أولاً");
@@ -185,20 +185,20 @@ document.getElementById('connect').onclick = async () => {
   showToast("🔗 تم الاتصال");
 };
 
-// ⛔ إيقاف الاتصال
+// قطع الاتصال
 document.getElementById('disconnect').onclick = () => {
   if (stream) {
     stream.getTracks().forEach(track => track.stop());
-    videoEl.srcObject = null;
+    document.getElementById('video').srcObject = null;
   }
   pc.close();
-  pc = createPeer(); // إعادة تهيئة
+  pc = createPeer();
   stream = null;
   videoTrack = null;
   audioTrack = null;
-  offerCreated = false;
   cameraEnabled = false;
   audioEnabled = false;
+  offerCreated = false;
   document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
   document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
   document.getElementById('offer').value = "";
@@ -206,5 +206,6 @@ document.getElementById('disconnect').onclick = () => {
   showToast("⛔ تم إيقاف الاتصال");
 };
 </script>
+
 </body>
 </html>
