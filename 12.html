@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>مستقبل الفيديو</title>
+  <style>
+    body { font-family: sans-serif; background:#00b894; color:#fff; text-align:center; padding:20px; }
+    video { width:100%; aspect-ratio:16/9; background:#000; margin:20px 0; border-radius:10px; }
+    textarea { width:100%; max-width:800px; height:120px; margin-top:10px; font-size:12px; border-radius:8px; border:none; padding:8px; }
+    button { padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; border:none; border-radius:5px; color:#fff; transition:0.25s; }
+    #pasteOffer { background:#2c3e50; }
+    #connect { background:#27ae60; }
+    #copyAnswer { background:#f39c12; }
+    #toggleMic { background:#2980b9; }
+    #muteAudio { background:#8e44ad; }
+    #disconnect { background:#c0392b; }
+    button:hover { opacity:0.85; }
+
+    #toast {
+      visibility:hidden;
+      min-width:220px;
+      background-color:rgba(0,0,0,0.8);
+      color:#fff;
+      text-align:center;
+      border-radius:4px;
+      padding:10px;
+      position:fixed;
+      left:50%;
+      bottom:30px;
+      transform:translateX(-50%);
+      font-size:14px;
+      opacity:0;
+      transition:opacity 0.3s, visibility 0.3s;
+    }
+    #toast.show { visibility:visible; opacity:1; }
+  </style>
+</head>
+<body>
+  <h2>📡 مستقبل الفيديو</h2>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <div>
+    <button id="pasteOffer">لصق Offer</button>
+    <button id="connect">اتصال</button>
+    <button id="toggleMic">تشغيل الميكروفون</button>
+    <button id="muteAudio">كتم صوت المرسل</button>
+    <button id="copyAnswer">نسخ Answer</button>
+    <button id="disconnect">قطع الاتصال</button>
+  </div>
+
+  <textarea id="offer" placeholder="ألصق هنا كود الـ Offer من المرسل"></textarea>
+  <textarea id="answer" placeholder="سيظهر كود الـ Answer هنا"></textarea>
+
+  <div id="toast"></div>
+
+<script>
+let pc = createPeer();
+const videoEl = document.getElementById('remoteVideo');
+let micStream, micTrack;
+let micEnabled = false;
+let isMuted = false;
+let connected = false;
+
+function createPeer() {
+  return new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceCandidatePoolSize: 4
+  });
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = "show";
+  setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
+}
+
+pc.ontrack = e => {
+  videoEl.srcObject = e.streams[0];
+};
+
+document.getElementById('pasteOffer').onclick = async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('offer').value = text;
+    showToast("تم اللصق");
+  } catch {
+    showToast("ألصق يدويًا");
+  }
+};
+
+document.getElementById('connect').onclick = async () => {
+  const offerText = document.getElementById('offer').value.trim();
+  if (!offerText) return showToast("أدخل كود Offer أولاً");
+  const offer = JSON.parse(offerText);
+  await pc.setRemoteDescription(offer);
+
+  micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  micTrack = micStream.getAudioTracks()[0];
+  micTrack.enabled = false;
+  pc.addTrack(micTrack, micStream);
+
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  connected = true;
+  showToast("تم الاتصال");
+};
+
+pc.onicecandidate = e => {
+  if (!e.candidate) {
+    document.getElementById('answer').value = JSON.stringify(pc.localDescription);
+  }
+};
+
+document.getElementById('copyAnswer').onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById('answer').value);
+  showToast("تم النسخ");
+};
+
+document.getElementById('toggleMic').onclick = () => {
+  if (!micTrack) return;
+  micEnabled = !micEnabled;
+  micTrack.enabled = micEnabled;
+  document.getElementById('toggleMic').textContent = micEnabled ? "إيقاف الميكروفون" : "تشغيل الميكروفون";
+  showToast(micEnabled ? "الميكروفون يعمل" : "الميكروفون مغلق");
+};
+
+document.getElementById('muteAudio').onclick = () => {
+  if (!videoEl.srcObject) return;
+  isMuted = !isMuted;
+  videoEl.muted = isMuted;
+  document.getElementById('muteAudio').textContent = isMuted ? "تشغيل صوت المرسل" : "كتم صوت المرسل";
+  showToast(isMuted ? "تم كتم الصوت" : "تم تشغيل الصوت");
+};
+
+document.getElementById('disconnect').onclick = () => {
+  if (connected) {
+    if (micStream) micStream.getTracks().forEach(track => track.stop());
+    if (videoEl.srcObject) videoEl.srcObject = null;
+    pc.close();
+    pc = createPeer();
+    micStream = null;
+    micTrack = null;
+    micEnabled = false;
+    isMuted = false;
+    connected = false;
+    document.getElementById('offer').value = "";
+    document.getElementById('answer').value = "";
+    document.getElementById('toggleMic').textContent = "تشغيل الميكروفون";
+    document.getElementById('muteAudio').textContent = "كتم صوت المرسل";
+    showToast("تم قطع الاتصال");
+  }
+};
+</script>
+</body>
+</html>

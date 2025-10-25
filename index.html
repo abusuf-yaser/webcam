@@ -2,64 +2,103 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>مستقبل الفيديو</title>
+  <title>مرسل الفيديو - إيقاف الاتصال</title>
   <style>
-    body { font-family: sans-serif; background:#00b894; color:#fff; text-align:center; padding:20px; }
-    video { width:100%; aspect-ratio:16/9; background:#000; margin:20px 0; border-radius:10px; }
-    textarea { width:100%; max-width:800px; height:120px; margin-top:10px; font-size:12px; border-radius:8px; border:none; padding:8px; }
-    button { padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; border:none; border-radius:5px; color:#fff; transition:0.25s; }
-    #pasteOffer { background:#2c3e50; }
-    #connect { background:#27ae60; }
-    #copyAnswer { background:#f39c12; }
-    #toggleMic { background:#2980b9; }
-    #muteAudio { background:#8e44ad; }
-    #disconnect { background:#c0392b; }
-    button:hover { opacity:0.85; }
-
-    #toast {
-      visibility:hidden;
-      min-width:220px;
-      background-color:rgba(0,0,0,0.8);
-      color:#fff;
-      text-align:center;
-      border-radius:4px;
-      padding:10px;
-      position:fixed;
-      left:50%;
-      bottom:30px;
-      transform:translateX(-50%);
-      font-size:14px;
-      opacity:0;
-      transition:opacity 0.3s, visibility 0.3s;
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #1e90ff, #00b894);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
     }
-    #toast.show { visibility:visible; opacity:1; }
+    h2 { margin-bottom: 10px; }
+    video {
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16/9;
+      background: #000;
+      margin: 20px 0;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    textarea {
+      width: 100%;
+      max-width: 800px;
+      height: 120px;
+      margin-top: 10px;
+      font-size: 12px;
+      border-radius: 8px;
+      border: none;
+      padding: 8px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      transition: 0.25s;
+    }
+    #toggleCamera { background: #27ae60; }
+    #toggleAudio { background: #2980b9; }
+    #copyOffer { background: #f39c12; }
+    #pasteAnswer { background: #8e44ad; }
+    #connect { background: #2c3e50; }
+    #disconnect { background: #c0392b; }
+    button:hover { opacity: 0.85; }
+
+    /* Toast */
+    #toast {
+      visibility: hidden;
+      min-width: 220px;
+      background-color: rgba(0,0,0,0.8);
+      color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      padding: 10px;
+      position: fixed;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+    #toast.show { visibility: visible; opacity: 1; }
   </style>
 </head>
 <body>
-  <h2>📡 مستقبل الفيديو</h2>
-  <video id="remoteVideo" autoplay playsinline></video>
+  <h2>📤 مرسل الفيديو - جودة عالية</h2>
+  <video id="video" autoplay playsinline muted></video>
 
-  <div>
-    <button id="pasteOffer">لصق Offer</button>
-    <button id="connect">اتصال</button>
-    <button id="toggleMic">تشغيل الميكروفون</button>
-    <button id="muteAudio">كتم صوت المرسل</button>
-    <button id="copyAnswer">نسخ Answer</button>
-    <button id="disconnect">قطع الاتصال</button>
+  <div class="controls">
+    <button id="toggleCamera">🎥 تشغيل الكاميرا</button>
+    <button id="toggleAudio">🎤 تشغيل الصوت</button>
+    <button id="copyOffer">📋 نسخ Offer</button>
+    <button id="pasteAnswer">📥 لصق Answer</button>
+    <button id="connect">🔗 اتصال</button>
+    <button id="disconnect">⛔ إيقاف الاتصال</button>
   </div>
 
-  <textarea id="offer" placeholder="ألصق هنا كود الـ Offer من المرسل"></textarea>
-  <textarea id="answer" placeholder="سيظهر كود الـ Answer هنا"></textarea>
+  <textarea id="offer" placeholder="سيظهر كود الـ Offer هنا"></textarea>
+  <textarea id="answer" placeholder="ألصق هنا كود الـ Answer من المستقبل"></textarea>
 
   <div id="toast"></div>
 
 <script>
 let pc = createPeer();
-const videoEl = document.getElementById('remoteVideo');
-let micStream, micTrack;
-let micEnabled = false;
-let isMuted = false;
-let connected = false;
+const videoEl = document.getElementById('video');
+let stream, videoTrack, audioTrack;
+let offerCreated = false;
+let cameraEnabled = false;
+let audioEnabled = false;
 
 function createPeer() {
   return new RTCPeerConnection({
@@ -75,81 +114,96 @@ function showToast(msg) {
   setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
 }
 
-pc.ontrack = e => {
-  videoEl.srcObject = e.streams[0];
-};
-
-document.getElementById('pasteOffer').onclick = async () => {
-  try {
-    const text = await navigator.clipboard.readText();
-    document.getElementById('offer').value = text;
-    showToast("تم اللصق");
-  } catch {
-    showToast("ألصق يدويًا");
+// تشغيل الكاميرا
+document.getElementById('toggleCamera').onclick = async () => {
+  if (!stream) {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1920, height: 1080, frameRate: 30 },
+      audio: true
+    });
+    videoEl.srcObject = stream;
+    videoTrack = stream.getVideoTracks()[0];
+    audioTrack = stream.getAudioTracks()[0];
+    pc.addTrack(videoTrack, stream);
+    pc.addTrack(audioTrack, stream);
+    cameraEnabled = true;
+    audioEnabled = true;
+    document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
+    document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
+    if (!offerCreated) await createOffer();
+  } else {
+    cameraEnabled = !cameraEnabled;
+    videoTrack.enabled = cameraEnabled;
+    document.getElementById('toggleCamera').textContent = cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
   }
 };
 
-document.getElementById('connect').onclick = async () => {
-  const offerText = document.getElementById('offer').value.trim();
-  if (!offerText) return showToast("أدخل كود Offer أولاً");
-  const offer = JSON.parse(offerText);
-  await pc.setRemoteDescription(offer);
-
-  micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  micTrack = micStream.getAudioTracks()[0];
-  micTrack.enabled = false;
-  pc.addTrack(micTrack, micStream);
-
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  connected = true;
-  showToast("تم الاتصال");
+// كتم وتشغيل الصوت
+document.getElementById('toggleAudio').onclick = () => {
+  if (!audioTrack) return;
+  audioEnabled = !audioEnabled;
+  audioTrack.enabled = audioEnabled;
+  document.getElementById('toggleAudio').textContent = audioEnabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
 };
+
+// إنشاء offer مرة واحدة
+async function createOffer() {
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  offerCreated = true;
+}
 
 pc.onicecandidate = e => {
   if (!e.candidate) {
-    document.getElementById('answer').value = JSON.stringify(pc.localDescription);
+    document.getElementById('offer').value = JSON.stringify(pc.localDescription);
   }
 };
 
-document.getElementById('copyAnswer').onclick = async () => {
-  await navigator.clipboard.writeText(document.getElementById('answer').value);
-  showToast("تم النسخ");
+// نسخ offer
+document.getElementById('copyOffer').onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById('offer').value);
+  showToast("✅ تم نسخ Offer");
 };
 
-document.getElementById('toggleMic').onclick = () => {
-  if (!micTrack) return;
-  micEnabled = !micEnabled;
-  micTrack.enabled = micEnabled;
-  document.getElementById('toggleMic').textContent = micEnabled ? "إيقاف الميكروفون" : "تشغيل الميكروفون";
-  showToast(micEnabled ? "الميكروفون يعمل" : "الميكروفون مغلق");
+// لصق answer
+document.getElementById('pasteAnswer').onclick = async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('answer').value = text;
+    showToast("✅ تم لصق Answer");
+  } catch {
+    showToast("⚠️ ألصق يدويًا");
+  }
 };
 
-document.getElementById('muteAudio').onclick = () => {
-  if (!videoEl.srcObject) return;
-  isMuted = !isMuted;
-  videoEl.muted = isMuted;
-  document.getElementById('muteAudio').textContent = isMuted ? "تشغيل صوت المرسل" : "كتم صوت المرسل";
-  showToast(isMuted ? "تم كتم الصوت" : "تم تشغيل الصوت");
+// الاتصال
+document.getElementById('connect').onclick = async () => {
+  const answerText = document.getElementById('answer').value.trim();
+  if (!answerText) return showToast("⚠️ ألصق كود Answer أولاً");
+  const answer = JSON.parse(answerText);
+  await pc.setRemoteDescription(answer);
+  showToast("🔗 تم الاتصال");
 };
 
+// ⛔ إيقاف الاتصال
 document.getElementById('disconnect').onclick = () => {
-  if (connected) {
-    if (micStream) micStream.getTracks().forEach(track => track.stop());
-    if (videoEl.srcObject) videoEl.srcObject = null;
-    pc.close();
-    pc = createPeer();
-    micStream = null;
-    micTrack = null;
-    micEnabled = false;
-    isMuted = false;
-    connected = false;
-    document.getElementById('offer').value = "";
-    document.getElementById('answer').value = "";
-    document.getElementById('toggleMic').textContent = "تشغيل الميكروفون";
-    document.getElementById('muteAudio').textContent = "كتم صوت المرسل";
-    showToast("تم قطع الاتصال");
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    videoEl.srcObject = null;
   }
+  pc.close();
+  pc = createPeer(); // إعادة تهيئة
+  stream = null;
+  videoTrack = null;
+  audioTrack = null;
+  offerCreated = false;
+  cameraEnabled = false;
+  audioEnabled = false;
+  document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
+  document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
+  document.getElementById('offer').value = "";
+  document.getElementById('answer').value = "";
+  showToast("⛔ تم إيقاف الاتصال");
 };
 </script>
 </body>
