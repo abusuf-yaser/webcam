@@ -134,7 +134,24 @@ document.getElementById('toggleCamera').onclick = async () => {
     videoTrack = stream.getVideoTracks()[0];
     audioTrack = stream.getAudioTracks()[0];
     pc.addTrack(videoTrack, stream);
-    pc.addTrack(audioTrack, stream);
+pc.addTrack(audioTrack, stream);
+
+// 🟡 تحسين جودة الفيديو
+const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+const params = sender.getParameters();
+if (!params.encodings) params.encodings = [{}];
+params.encodings[0].maxBitrate = 4_000_000;            // 4 Mbps
+params.encodings[0].scaleResolutionDownBy = 1;         // لا تخفض الدقة
+params.encodings[0].maxFramerate = 30;
+sender.setParameters(params);
+
+// 🟢 إجبار الكاميرا على 1080p
+await videoTrack.applyConstraints({
+  width: { ideal: 1920 },
+  height: { ideal: 1080 },
+  frameRate: { ideal: 30 }
+});
+
     cameraEnabled = true;
     audioEnabled = true;
     document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
