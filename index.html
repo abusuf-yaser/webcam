@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>مرسل الفيديو - Toast</title>
+  <title>مرسل الفيديو - إيقاف الاتصال</title>
   <style>
     body {
       font-family: sans-serif;
@@ -14,7 +14,6 @@
     h2 { margin-bottom: 10px; }
     video {
       width: 100%;
-      
       aspect-ratio: 16/9;
       background: #000;
       margin: 20px 0;
@@ -25,7 +24,7 @@
       width: 100%;
       max-width: 800px;
       height: 120px;
-      margin-top: 50px;
+      margin-top: 10px;
       font-size: 12px;
       border-radius: 8px;
       border: none;
@@ -51,6 +50,7 @@
     #copyOffer { background: #f39c12; }
     #pasteAnswer { background: #8e44ad; }
     #connect { background: #2c3e50; }
+    #disconnect { background: #c0392b; }
     button:hover { opacity: 0.85; }
 
     /* Toast */
@@ -70,14 +70,11 @@
       opacity: 0;
       transition: opacity 0.3s, visibility 0.3s;
     }
-    #toast.show {
-      visibility: visible;
-      opacity: 1;
-    }
+    #toast.show { visibility: visible; opacity: 1; }
   </style>
 </head>
 <body>
-  <h2>📤 مرسل الفيديو - Toast</h2>
+  <h2>📤 مرسل الفيديو - جودة عالية</h2>
   <video id="video" autoplay playsinline muted></video>
 
   <div class="controls">
@@ -86,6 +83,7 @@
     <button id="copyOffer">📋 نسخ Offer</button>
     <button id="pasteAnswer">📥 لصق Answer</button>
     <button id="connect">🔗 اتصال</button>
+    <button id="disconnect">⛔ إيقاف الاتصال</button>
   </div>
 
   <textarea id="offer" placeholder="سيظهر كود الـ Offer هنا"></textarea>
@@ -94,14 +92,20 @@
   <div id="toast"></div>
 
 <script>
-const pc = new RTCPeerConnection({ iceServers:[{urls:"stun:stun.l.google.com:19302"}] });
+let pc = createPeer();
 const videoEl = document.getElementById('video');
 let stream, videoTrack, audioTrack;
 let offerCreated = false;
 let cameraEnabled = false;
 let audioEnabled = false;
 
-// Toast function
+function createPeer() {
+  return new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    iceCandidatePoolSize: 4
+  });
+}
+
 function showToast(msg) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
@@ -177,7 +181,28 @@ document.getElementById('connect').onclick = async () => {
   if (!answerText) return showToast("⚠️ ألصق كود Answer أولاً");
   const answer = JSON.parse(answerText);
   await pc.setRemoteDescription(answer);
-  showToast("🔗 تم الاتصال بنجاح");
+  showToast("🔗 تم الاتصال");
+};
+
+// ⛔ إيقاف الاتصال
+document.getElementById('disconnect').onclick = () => {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    videoEl.srcObject = null;
+  }
+  pc.close();
+  pc = createPeer(); // إعادة تهيئة
+  stream = null;
+  videoTrack = null;
+  audioTrack = null;
+  offerCreated = false;
+  cameraEnabled = false;
+  audioEnabled = false;
+  document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
+  document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
+  document.getElementById('offer').value = "";
+  document.getElementById('answer').value = "";
+  showToast("⛔ تم إيقاف الاتصال");
 };
 </script>
 </body>
