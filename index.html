@@ -57,8 +57,13 @@
 
     #toggleCamera {
       background: #27ae60;
+      align-items: center;
+      margin-bottom: 10px  ;
+      
     }
-
+    #stopCamera {
+  background: #1303f5;
+}
     #toggleAudio {
       background: #2980b9;
     }
@@ -110,10 +115,12 @@
 
 <body>
   <h2>📤 مرسل الفيديو - جودة عالية</h2>
-  <video id="video" autoplay playsinline muted></video>
 
+  <div><video id="video" autoplay playsinline muted></video></div>
+
+  <button id="toggleCamera"> ابدأ</button>
   <div class="controls">
-    <button id="toggleCamera">🎥 تشغيل الكاميرا</button>
+    <button id="stopCamera"> 🎥إيقاف الكاميرا</button>
     <button id="toggleAudio">🎤 تشغيل الصوت</button>
     <button id="copyOffer">📋 نسخ Offer</button>
     <button id="pasteAnswer">📥 لصق Answer</button>
@@ -127,13 +134,10 @@
   <div id="toast"></div>
 
   <script>
-    let pc;
+ let pc = null;
     let stream = null;
     let videoTrack = null;
     let audioTrack = null;
-    let cameraEnabled = false;
-    let audioEnabled = false;
-    let offerCreated = false;
 
     function createPeer() {
       const p = new RTCPeerConnection({
@@ -148,73 +152,56 @@
       return p;
     }
 
-    pc = createPeer();
+    document.getElementById('toggleCamera').onclick = async () => {
+      if (pc) pc.close();
+      pc = createPeer();
 
-    function showToast(msg) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.className = "show";
-      setTimeout(() => toast.className = toast.className.replace("show", ""), 2000);
-    }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
 
-    // زر تشغيل الكاميرا
-   document.getElementById('toggleCamera').onclick = async () => {
-  // 1. إذا في اتصال قديم افصله
-  if (pc) {
-    pc.close();
-    pc = null;
-  }
+      // تشغيل الكاميرا والمايك
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        audio: true
+      });
 
-  // 2. أنشئ PeerConnection جديد
-  pc = createPeer();
+      document.getElementById('video').srcObject = stream;
+      videoTrack = stream.getVideoTracks()[0];
+      audioTrack = stream.getAudioTracks()[0];
+      pc.addTrack(videoTrack, stream);
+      pc.addTrack(audioTrack, stream);
 
-  // 3. أوقف أي تدفق قديم
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
+      // تحسين جودة الفيديو
+      const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+      const params = sender.getParameters();
+      if (!params.encodings) params.encodings = [{}];
+      params.encodings[0].maxBitrate = 5_000_000;
+      params.encodings[0].scaleResolutionDownBy = 1;
+      params.encodings[0].maxFramerate = 30;
+      await sender.setParameters(params);
 
-  // 4. اطلب تدفق جديد
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 30 }
-    },
-    audio: true
-  });
+      await videoTrack.applyConstraints({
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 }
+      });
 
-  document.getElementById('video').srcObject = stream;
-  videoTrack = stream.getVideoTracks()[0];
-  audioTrack = stream.getAudioTracks()[0];
-  pc.addTrack(videoTrack, stream);
-  pc.addTrack(audioTrack, stream);
+      // توليد الكود
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      document.getElementById('offer').value = JSON.stringify(pc.localDescription);
+    };
 
-  // 5. تحسين جودة الفيديو
-  const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-  const params = sender.getParameters();
-  if (!params.encodings) params.encodings = [{}];
-  params.encodings[0].maxBitrate = 5_000_000;
-  params.encodings[0].scaleResolutionDownBy = 1;
-  params.encodings[0].maxFramerate = 30;
-  await sender.setParameters(params);
+    document.getElementById('stopCamera').onclick = () => {
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        document.getElementById('stopCamera').textContent = 
+          videoTrack.enabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
+      }
+    };
 
-  await videoTrack.applyConstraints({
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
-    frameRate: { ideal: 30 }
-  });
-
-  // 6. توليد Offer جديد
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  // 7. عرض الكود
-  document.getElementById('offer').value = JSON.stringify(pc.localDescription);
-
-  // 8. تحديث نص الزر
-  document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
-};
 
 
 
@@ -267,7 +254,7 @@
       cameraEnabled = false;
       audioEnabled = false;
       offerCreated = false;
-      document.getElementById('toggleCamera').textContent = "🎥 تشغيل الكاميرا";
+      //document.getElementById('toggleCamera').textContent = "إبدأ";
       document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
       document.getElementById('offer').value = "";
       document.getElementById('answer').value = "";
