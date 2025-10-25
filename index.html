@@ -159,54 +159,54 @@
 
     // زر تشغيل الكاميرا
     document.getElementById('toggleCamera').onclick = async () => {
-  if (!stream) {
-    // طلب الفيديو بدقة 1080p والصوت
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        frameRate: { ideal: 30 }
-      },
-      audio: true
-    });
+      if (!stream) {
+        // طلب الفيديو بدقة 1080p والصوت
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 }
+          },
+          audio: true
+        });
 
-    document.getElementById('video').srcObject = stream;
-    videoTrack = stream.getVideoTracks()[0];
-    audioTrack = stream.getAudioTracks()[0];
+        document.getElementById('video').srcObject = stream;
+        videoTrack = stream.getVideoTracks()[0];
+        audioTrack = stream.getAudioTracks()[0];
 
-    // إضافة المسارات إلى الاتصال
-    pc.addTrack(videoTrack, stream);
-    pc.addTrack(audioTrack, stream);
+        // إضافة المسارات إلى الاتصال
+        pc.addTrack(videoTrack, stream);
+        pc.addTrack(audioTrack, stream);
 
-    // 🟡 تحسين جودة الفيديو
-    const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-    const params = sender.getParameters();
-    if (!params.encodings) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 5_000_000; // 5 Mbps لثبات الصورة
-    params.encodings[0].scaleResolutionDownBy = 1; // لا تقليل للدقة
-    params.encodings[0].maxFramerate = 30;
-    await sender.setParameters(params);
+        // 🟡 تحسين جودة الفيديو
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        const params = sender.getParameters();
+        if (!params.encodings) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 5_000_000; // 5 Mbps لثبات الصورة
+        params.encodings[0].scaleResolutionDownBy = 1; // لا تقليل للدقة
+        params.encodings[0].maxFramerate = 30;
+        await sender.setParameters(params);
 
-    // 🟢 فرض دقة الكاميرا
-    await videoTrack.applyConstraints({
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      frameRate: { ideal: 30 }
-    });
+        // 🟢 فرض دقة الكاميرا
+        await videoTrack.applyConstraints({
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
+        });
 
-    // توليد الـ Offer
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
+        // توليد الـ Offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-    document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
-    document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
-  } else {
-    cameraEnabled = !cameraEnabled;
-    videoTrack.enabled = cameraEnabled;
-    document.getElementById('toggleCamera').textContent =
-      cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
-  }
-};
+        document.getElementById('toggleCamera').textContent = "📷 إيقاف الكاميرا";
+        document.getElementById('toggleAudio').textContent = "🔇 كتم الصوت";
+      } else {
+        cameraEnabled = !cameraEnabled;
+        videoTrack.enabled = cameraEnabled;
+        document.getElementById('toggleCamera').textContent =
+          cameraEnabled ? "📷 إيقاف الكاميرا" : "🎥 تشغيل الكاميرا";
+      }
+    };
 
 
 
@@ -265,16 +265,17 @@
       showToast("⛔ تم إيقاف الاتصال");
     };
     window.onload = () => {
-  pc = createPeer();
-  stream = null;
-  videoTrack = null;
-  audioTrack = null;
-  offerCreated = false;
-  cameraEnabled = false;
-  audioEnabled = false;
-};
+      pc = createPeer();
+      stream = null;
+      videoTrack = null;
+      audioTrack = null;
+      offerCreated = false;
+      cameraEnabled = false;
+      audioEnabled = false;
+    };
 
   </script>
 
 </body>
-</html> 
+
+</html>
