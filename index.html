@@ -138,6 +138,9 @@
     let stream = null;
     let videoTrack = null;
     let audioTrack = null;
+    let audioEnabled = true; 
+let audioReady = false;
+
 
     function createPeer() {
       const p = new RTCPeerConnection({
@@ -208,10 +211,12 @@
 
     // زر الصوت
     document.getElementById('toggleAudio').onclick = () => {
-      if (!audioTrack) return;
-      audioEnabled = !audioEnabled;
-      audioTrack.enabled = audioEnabled;
-      document.getElementById('toggleAudio').textContent = audioEnabled ? "🎤 تشغيل الصوت" : "🔇 كتم الصوت";
+      if (audioTrack) {
+  audioTrack.enabled = !audioTrack.enabled;
+  document.getElementById('toggleAudio').textContent =
+    audioTrack.enabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
+}
+
     };
 
     // زر نسخ offer
