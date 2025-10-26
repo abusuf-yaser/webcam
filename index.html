@@ -121,7 +121,7 @@
   <button id="toggleCamera"> ابدأ</button>
   <div class="controls">
     <button id="stopCamera"> 🎥إيقاف الكاميرا</button>
-    <button id="toggleAudio">🎤 تشغيل الصوت</button>
+    <button id="toggleAudio">🔇 كتم الصوت</button>
     <button id="copyOffer">📋 نسخ Offer</button>
     <button id="pasteAnswer">📥 لصق Answer</button>
     <button id="connect">🔗 اتصال</button>
@@ -211,7 +211,7 @@
       if (!audioTrack) return;
       audioEnabled = !audioEnabled;
       audioTrack.enabled = audioEnabled;
-      document.getElementById('toggleAudio').textContent = audioEnabled ? "🔇 كتم الصوت" : "🎤 تشغيل الصوت";
+      document.getElementById('toggleAudio').textContent = audioEnabled ? "🎤 تشغيل الصوت" : "🔇 كتم الصوت";
     };
 
     // زر نسخ offer
@@ -255,7 +255,7 @@
       audioEnabled = false;
       offerCreated = false;
       //document.getElementById('toggleCamera').textContent = "إبدأ";
-      document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
+      //document.getElementById('toggleAudio').textContent = "🎤 تشغيل الصوت";
       document.getElementById('offer').value = "";
       document.getElementById('answer').value = "";
       showToast("⛔ تم إيقاف الاتصال");
